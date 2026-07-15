@@ -1,0 +1,172 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;
+}
+
+body{
+    background:#0b1220;
+    color:white;
+    padding:20px;
+}
+
+header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    background:#14213d;
+
+    padding:20px;
+
+    border-radius:12px;
+
+    margin-bottom:20px;
+
+    box-shadow:0 0 20px rgba(0,255,150,.25);
+}
+
+.logo{
+
+    font-size:32px;
+
+    font-weight:bold;
+
+    color:#00ff88;
+
+}
+
+.datetime{
+
+    text-align:right;
+
+}
+
+#date{
+
+    font-size:18px;
+
+}
+
+#clock{
+
+    font-size:34px;
+
+    font-weight:bold;
+
+    color:#00ff88;
+
+}
+
+.dashboard{
+
+    display:grid;
+
+    grid-template-columns:repeat(3,1fr);
+
+    gap:20px;
+
+}
+
+.card{
+
+    background:#18253d;
+
+    border-radius:15px;
+
+    padding:20px;
+
+    min-height:260px;
+
+    box-shadow:0 0 15px rgba(0,255,150,.15);
+
+    transition:.3s;
+
+}
+
+.card:hover{
+
+    transform:translateY(-5px);
+
+    box-shadow:0 0 25px rgba(0,255,150,.5);
+
+}
+
+.card h2{
+
+    color:#00ff88;
+
+    margin-bottom:15px;
+
+    border-bottom:2px solid #00ff88;
+
+    padding-bottom:10px;
+
+}
+
+.card ul{
+
+    list-style:none;
+
+}
+
+.card li{
+
+    margin:12px 0;
+
+    font-size:18px;
+
+}
+
+label{
+
+    display:block;
+
+    margin:12px 0;
+
+    font-size:18px;
+
+}
+
+input[type=checkbox]{
+
+    transform:scale(1.4);
+
+    margin-right:10px;
+
+}
+
+strong{
+
+    color:#00ff88;
+
+}
+
+footer{
+
+    margin-top:25px;
+
+    text-align:center;
+
+    color:#888;
+
+}
+
+h1{
+
+    font-size:40px;
+
+    color:#00ff88;
+
+    margin-top:20px;
+
+}
+
+p{
+
+    margin-top:10px;
+
+    font-size:18px;
+
+}
