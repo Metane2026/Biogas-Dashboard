@@ -1,189 +1,456 @@
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Biogas Operation Center</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <link rel="stylesheet" href="style.css">
+<title>Biogas Operation Center</title>
+
+<link rel="stylesheet" href="style.css">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet"
+href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
 </head>
 
 <body>
 
-    <!-- Header -->
-    <header>
+<div class="container">
 
-        <div class="logo">
+<aside class="sidebar">
 
-            🟢 BIOGAS OPERATION CENTER
+<div class="logo">
+
+<i class="fa-solid fa-industry"></i>
+
+<h2>BIOGAS</h2>
+
+<p>Operation Center</p>
+
+</div>
+
+<nav>
+
+<ul>
+
+<li class="active">
+
+<i class="fa-solid fa-house"></i>
+
+Dashboard
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-users"></i>
+
+ผู้เข้ากะ
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-list-check"></i>
+
+Checklist
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-chart-line"></i>
+
+KPI
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-gears"></i>
+
+สถานะระบบ
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-screwdriver-wrench"></i>
+
+เครื่องจักร
+
+</li>
+
+<li>
+
+<i class="fa-solid fa-bullhorn"></i>
+
+ประกาศ
+
+</li>
+
+</ul>
+
+</nav>
+
+</aside>
+
+<main class="content">
+
+<header>
+
+<div>
+
+<h1>
+
+🟢 BIOGAS OPERATION CENTER
+
+</h1>
+
+<p>
+
+Monitoring Dashboard
+
+</p>
+
+</div>
+
+<div class="clock">
+
+<div id="date"></div>
+
+<div id="clock"></div>
+
+</div>
+
+</header>
+
+<section class="dashboard">
+    <!-- ผู้เข้ากะวันนี้ -->
+<div class="card shift-card">
+
+    <div class="card-header">
+        <h2><i class="fa-solid fa-users"></i> ผู้เข้ากะวันนี้</h2>
+
+        <button class="btn-view" onclick="window.location.href='shift.html'">
+            ดูทั้งหมด
+        </button>
+    </div>
+
+    <div class="shift-group">
+
+        <h3>🌅 กะเช้า</h3>
+
+        <ul>
+            <li>🟢 ไพศาล</li>
+            <li>🟢 นพดล</li>
+            <li>🟢 นิรุจน์</li>
+            <li>🟢 จิรวัฒน์</li>
+            <li>🟢 เกียรติศักดิ์</li>
+            <li>🟢 เอกธนากร ช่วยงานบรรจุ </li>
+        </ul>
+
+    </div>
+
+    <div class="shift-group">
+
+        <h3>🌇 กะบ่าย</h3>
+
+        <ul>
+            <li>🟡 ธนวัฒน์ </li>
+            
+        </ul>
+
+    </div>
+
+    <div class="shift-group">
+
+        <h3>🌙 กะดึก</h3>
+
+        <ul>
+            <li>🔵 ชนาธิป </li>
+            
+        </ul>
+
+    </div>
+    
+  
+
+
+</div>
+
+<!-- Checklist -->
+<div class="card">
+
+    <div class="card-header">
+
+        <h2>
+            <i class="fa-solid fa-list-check"></i>
+            Checklist วันนี้
+        </h2>
+
+        <button class="btn-view">
+            รายงาน
+        </button>
+
+    </div>
+
+    <label><input type="checkbox"> ตรวจ CH₄</label>
+
+    <label><input type="checkbox"> ตรวจ H₂S</label>
+
+    <label><input type="checkbox"> ตรวจ Blower</label>
+
+    <label><input type="checkbox"> ตรวจ Pump</label>
+
+    <label><input type="checkbox"> ตรวจค่า pH</label>
+
+    <label><input type="checkbox"> เติมสารเคมี</label>
+
+    <br>
+
+    <div class="progress-title">
+
+        ความคืบหน้า
+
+        <span id="progressText">0%</span>
+
+    </div>
+
+    <div class="progress">
+
+        <div class="progress-bar" id="progressBar"></div>
+
+    </div>
+
+</div>
+
+<!-- KPI -->
+<div class="card">
+
+    <div class="card-header">
+
+        <h2>
+
+            <i class="fa-solid fa-chart-line"></i>
+
+            KPI วันนี้
+
+        </h2>
+
+    </div>
+
+    <div class="kpi-grid">
+
+        <div class="kpi-box">
+
+            <span>CH₄</span>
+
+            <h3>61.5%</h3>
 
         </div>
 
-        <div class="datetime">
+        <div class="kpi-box">
 
-            <div id="date">15 กรกฎาคม 2569</div>
+            <span>H₂S IN</span>
 
-            <div id="clock">20:30:00</div>
+            <h3>12,300</h3>
+
+            <small>ppm</small>
 
         </div>
 
-    </header>
+        <div class="kpi-box">
 
-    <!-- Dashboard -->
-    <main class="dashboard">
+            <span>H₂S OUT</span>
 
-        <!-- Shift -->
-        <section class="card">
+            <h3>180</h3>
 
-            <h2>👷 ผู้ปฏิบัติงานวันนี้</h2>
+            <small>ppm</small>
 
-            <ul>
+        </div>
 
-                <li>🟢 นาย ชนาธิป</li>
+        <div class="kpi-box">
 
-                <li>🟢 นาย จิรวัฒน์</li>
+            <span>Efficiency</span>
 
-                <li>🟢 นาย นิรุจน์</li>
+            <h3>98.54%</h3>
 
-                <li>🟢 นาย ไพศาล
+        </div>
 
-                </li>🟢 นาย นพดล
+    </div>
 
-            </ul>
+</div>
+<!-- ================= SYSTEM STATUS ================= -->
 
-        </section>
+<div class="card">
 
-        <!-- Checklist -->
-        <section class="card">
+    <div class="card-header">
 
-            <h2>📋 Checklist ประจำวัน</h2>
+        <h2>
+            <i class="fa-solid fa-gears"></i>
+            สถานะระบบ
+        </h2>
 
-            <label>
+        <button class="btn-view" onclick="location.href='equipment.html'"="window.location.href='equipment.html'">
 
-                <input type="checkbox">
+            รายละเอียด
 
-                ตรวจ CH4
+        </button>
 
-            </label>
+    </div>
 
-            <label>
+    <div class="system-list">
 
-                <input type="checkbox">
+        <div class="system-item">
+            <span>🟢 Blower A</span>
+            <span class="status running">RUNNING</span>
+        </div>
 
-                ตรวจ H2S
+        <div class="system-item">
+            <span>🟢 Pump Feed</span>
+            <span class="status running">RUNNING</span>
+        </div>
 
-            </label>
+        <div class="system-item">
+            <span>🟢 Bio Scrubber</span>
+            <span class="status running">RUNNING</span>
+        </div>
 
-            <label>
+        <div class="system-item">
+            <span>🟢 Boiler</span>
+            <span class="status running">RUNNING</span>
+        </div>
 
-                <input type="checkbox">
+    </div>
 
-                ตรวจ Blower
+</div>
 
-            </label>
+<!-- ================= NOTICE ================= -->
 
-            <label>
+<div class="card">
 
-                <input type="checkbox">
+    <div class="card-header">
 
-                ตรวจ Pump
+        <h2>
 
-            </label>
+            <i class="fa-solid fa-bullhorn"></i>
 
-            <label>
+            ข่าวประกาศ
 
-                <input type="checkbox">
+        </h2>
 
-                ตรวจค่า pH
+    </div>
 
-            </label>
+    <div class="notice-box">
 
-            <label>
+        <marquee behavior="scroll" direction="up" scrollamount="2" height="180">
 
-                <input type="checkbox">
+            📢 วันนี้ 13.30 ประชุม TPM ห้องประชุมใหญ่
 
-                เติมสารเคมี
+            <br><br>
 
-            </label>
+            📢 วันที่ 17 กรกฎาคม PM Blower
 
-        </section>
+            <br><br>
 
-        <!-- KPI -->
-        <section class="card">
+            📢 Supplier เข้าตรวจ Bio Scrubber
 
-            <h2>📊 KPI</h2>
+            <br><br>
 
-            <p>CH4 : <strong>61.50%</strong></p>
+            📢 ตรวจสอบ PPE ก่อนเข้าพื้นที่
 
-            <p>H2S In : <strong>12,300 ppm</strong></p>
+            <br><br>
 
-            <p>H2S Out : <strong>180 ppm</strong></p>
+            📢 Safety First
 
-            <p>Efficiency : <strong>98.54%</strong></p>
+        </marquee>
 
-            <p>Flow Rate : <strong>1,200 m³/hr</strong></p>
+    </div>
 
-        </section>
+</div>
 
-        <!-- Announcement -->
-        <section class="card">
+<!-- ================= PM ================= -->
 
-            <h2>📢 ข่าวประกาศ</h2>
+<div class="card">
 
-            <ul>
+    <div class="card-header">
 
-                <li>13.30 ประชุม TPM</li>
+        <h2>
 
-                <li>Supplier เข้าตรวจ Bio Scrubber</li>
+            <i class="fa-solid fa-calendar-days"></i>
 
-                <li>ตรวจ PM Blower วันที่ 17 ก.ค.</li>
+            PM Schedule
 
-            </ul>
+        </h2>
 
-        </section>
+    </div>
 
-        <!-- Weekly Plan -->
-        <section class="card">
+    <table class="pm-table">
 
-            <h2>📅 แผนงานสัปดาห์นี้</h2>
+        <tr>
 
-            <ul>
+            <th>วันที่</th>
 
-                <li>16 ก.ค. ล้างถัง Bio Scrubber #4</li>
+            <th>รายการ</th>
 
-                <li>17 ก.ค. PM Pump #2</li>
+        </tr>
 
-                <li>18 ก.ค. ตรวจ Safety</li>
+        <tr>
 
-                <li>19 ก.ค. เปลี่ยนน้ำมัน Blower</li>
+            <td>17 ก.ค.</td>
 
-            </ul>
+            <td>PM Blower</td>
 
-        </section>
+        </tr>
 
-        <!-- Status -->
-        <section class="card">
+        <tr>
 
-            <h2>🟢 สถานะระบบ</h2>
+            <td>18 ก.ค.</td>
 
-            <h1>RUNNING NORMAL</h1>
+            <td>ตรวจ Pump 1</td>
 
-            <p>ทุกระบบทำงานปกติ</p>
+        </tr>
 
-        </section>
+        <tr>
 
-    </main>
+            <td>20 ก.ค.</td>
 
-    <footer>
+            <td>ล้าง Bio Scrubber</td>
 
-        Biogas Operation Center Version 1.0
+        </tr>
 
-    </footer>
+        <tr>
 
-    <script src="script.js"></script>
+            <td>23 ก.ค.</td>
+
+            <td>Safety Inspection</td>
+
+        </tr>
+
+    </table>
+
+</div>
+
+</section>
+
+<footer>
+
+© 2026 Biogas Operation Center
+
+</footer>
+
+</main>
+
+</div>
+
+<script src="script.js"></script>
 
 </body>
 
