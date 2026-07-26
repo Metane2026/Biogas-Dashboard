@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biogas Operational Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SheetJS (XLSX Parser) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Sarabun', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .zone-card {
+            transition: all 0.25s ease-in-out;
+            cursor: pointer;
+        }
+        .zone-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 25px -5px rgba(16, 185, 129, 0.25);
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #10b981;
+        }
+    </style>
+</head>
+<body class="p-3 md:p-6 pb-20">
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Header Section -->
+    <header class="glass-card rounded-2xl p-4 md:p-6 mb-6 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center space-x-4">
+            <div class="bg-gradient-to-tr from-emerald-600 to-teal-400 text-slate-900 p-3.5 rounded-2xl shadow-lg shadow-emerald-500/20">
+                <i class="fa-solid fa-fire-flame-curved text-2xl md:text-3xl text-slate-950"></i>
+            </div>
+            <div>
+                <h1 class="text-xl md:text-2xl font-bold text-white tracking-wide flex items-center gap-2">
+                    Biogas Operational Dashboard
+                    <span class="text-xs bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium px-2.5 py-0.5 rounded-full">v5.0</span>
+                </h1>
+                <p class="text-xs md:text-sm text-slate-400 font-normal mt-0.5">ระบบจัดการกะปฏิบัติการ (รองรับรหัส A, G, B, C, OFF, H) บันทึกข้อมูลอัตโนมัติไม่ต้องเข้า VS Code</p>
+            </div>
+        </div>
+
+        <!-- Clock Display & Quick Actions -->
+        <div class="flex items-center space-x-3 w-full md:w-auto justify-between md:justify-end">
+            <div class="glass-card px-4 py-2 rounded-xl text-center flex-1 md:flex-none">
+                <div id="current-date" class="text-xs text-slate-400 font-medium">กำลังโหลด...</div>
+                <div id="current-time" class="text-base md:text-lg font-mono font-bold text-emerald-400">00:00:00</div>
+            </div>
+
+            <!-- Home Shortcut Button -->
+            <button onclick="switchTab('tab-shift')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700 transition flex items-center space-x-2 text-xs font-medium">
+                <i class="fa-solid fa-house text-emerald-400"></i>
+                <span>หน้าหลัก</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs Bar -->
+    <div class="flex space-x-2 border-b border-slate-800 pb-3 mb-6 overflow-x-auto">
+        <button id="btn-tab-shift" onclick="switchTab('tab-shift')" class="tab-btn active text-sm font-medium px-4 py-2.5 rounded-xl transition-all flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
+            <i class="fa-solid fa-house"></i>
+            <span>หน้าหลัก (กะวันนี้)</span>
+        </button>
+        <button id="btn-tab-schedule" onclick="switchTab('tab-schedule')" class="tab-btn text-sm font-medium px-4 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all flex items-center space-x-2 whitespace-nowrap">
+            <i class="fa-solid fa-table-cells"></i>
+            <span>ตารางกะรวม (แบบ Excel)</span>
+        </button>
+        <button id="btn-tab-machines" onclick="switchTab('tab-machines')" class="tab-btn text-sm font-medium px-4 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all flex items-center space-x-2 whitespace-nowrap">
+            <i class="fa-solid fa-sitemap"></i>
+            <span>แผนผังอาคาร & เครื่องจักร</span>
+        </button>
+        <button id="btn-tab-tasks" onclick="switchTab('tab-tasks')" class="tab-btn text-sm font-medium px-4 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all flex items-center space-x-2 whitespace-nowrap">
+            <i class="fa-solid fa-list-check"></i>
+            <span>งานประจำวัน & ประวัติ 30 วัน</span>
+        </button>
+        <button id="btn-tab-upload" onclick="switchTab('tab-upload')" class="tab-btn text-sm font-medium px-4 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all flex items-center space-x-2 whitespace-nowrap ml-auto bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 font-semibold shadow-lg">
+            <i class="fa-solid fa-file-excel text-emerald-400"></i>
+            <span>แนบไฟล์ Excel & บันทึกจำ</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: Home - Daily Shift Roster -->
+    <section id="tab-shift" class="tab-content space-y-6">
+        
+        <!-- Date Selector Bar -->
+        <div class="glass-card rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center space-x-3 w-full sm:w-auto">
+                <i class="fa-solid fa-calendar-day text-emerald-400 text-lg"></i>
+                <div>
+                    <h2 class="text-sm font-bold text-slate-200">รายชื่อผู้เข้ากะประจำวัน</h2>
+                    <p class="text-xs text-slate-400">ตรวจสอบผู้ปฏิบัติงานประจำวันที่เลือก (รองรับรหัส A, G, B, C, OFF, H)</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                <input type="date" id="selected-shift-date" onchange="renderShiftToday()" class="bg-slate-900 border border-slate-700 text-emerald-400 text-xs font-mono rounded-xl px-3 py-2.5 focus:outline-none focus:border-emerald-500">
+                <button onclick="resetToToday()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-3 py-2.5 rounded-xl border border-slate-700 transition flex items-center space-x-1 whitespace-nowrap">
+                    <i class="fa-solid fa-rotate-left text-amber-400"></i>
+                    <span>วันนี้</span>
+                </button>
+                <button onclick="switchTab('tab-schedule')" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 text-xs px-3.5 py-2.5 rounded-xl border border-emerald-500/30 transition flex items-center space-x-1 whitespace-nowrap font-medium">
+                    <span>ดูตารางกะรวมทั้งหมด</span>
+                    <i class="fa-solid fa-arrow-right text-xs ml-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Shift Cards Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            
+            <!-- Morning Shift (A, G) -->
+            <div class="glass-card rounded-2xl p-4 border-t-4 border-amber-400 shadow-xl">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-sun text-amber-400 text-lg"></i>
+                        <h3 class="font-bold text-sm text-amber-400">กะเช้า (A, G)</h3>
+                    </div>
+                    <span class="text-[10px] bg-amber-400/10 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/20 font-mono">08:00-16:00</span>
+                </div>
+                <div id="morning-shift-list" class="space-y-2">
+                    <div class="text-xs text-slate-500 italic py-2 text-center">กำลังโหลด...</div>
+                </div>
+            </div>
+
+            <!-- Afternoon Shift (B) -->
+            <div class="glass-card rounded-2xl p-4 border-t-4 border-orange-500 shadow-xl">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-cloud-sun text-orange-400 text-lg"></i>
+                        <h3 class="font-bold text-sm text-orange-400">กะบ่าย (B)</h3>
+                    </div>
+                    <span class="text-[10px] bg-orange-500/10 text-orange-300 px-2 py-0.5 rounded-full border border-orange-500/20 font-mono">16:00-24:00</span>
+                </div>
+                <div id="afternoon-shift-list" class="space-y-2">
+                    <div class="text-xs text-slate-500 italic py-2 text-center">กำลังโหลด...</div>
+                </div>
+            </div>
+
+            <!-- Night Shift (C) -->
+            <div class="glass-card rounded-2xl p-4 border-t-4 border-indigo-400 shadow-xl">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-moon text-indigo-400 text-lg"></i>
+                        <h3 class="font-bold text-sm text-indigo-400">กะดึก (C)</h3>
+                    </div>
+                    <span class="text-[10px] bg-indigo-400/10 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-400/20 font-mono">00:00-08:00</span>
+                </div>
+                <div id="night-shift-list" class="space-y-2">
+                    <div class="text-xs text-slate-500 italic py-2 text-center">กำลังโหลด...</div>
+                </div>
+            </div>
+
+            <!-- Weekly Off (OFF) -->
+            <div class="glass-card rounded-2xl p-4 border-t-4 border-slate-500 shadow-xl">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-mug-hot text-slate-400 text-lg"></i>
+                        <h3 class="font-bold text-sm text-slate-300">วันหยุด (OFF)</h3>
+                    </div>
+                    <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full border border-slate-700 font-mono">WEEKLY</span>
+                </div>
+                <div id="off-shift-list" class="space-y-2">
+                    <div class="text-xs text-slate-500 italic py-2 text-center">กำลังโหลด...</div>
+                </div>
+            </div>
+
+            <!-- Public Holiday (H) -->
+            <div class="glass-card rounded-2xl p-4 border-t-4 border-rose-500 shadow-xl">
+                <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800">
+                    <div class="flex items-center space-x-2">
+                        <i class="fa-solid fa-umbrella-beach text-rose-400 text-lg"></i>
+                        <h3 class="font-bold text-sm text-rose-400">นักขัตฤกษ์ (H)</h3>
+                    </div>
+                    <span class="text-[10px] bg-rose-500/10 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/20 font-mono">HOLIDAY</span>
+                </div>
+                <div id="holiday-shift-list" class="space-y-2">
+                    <div class="text-xs text-slate-500 italic py-2 text-center">กำลังโหลด...</div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- TAB 2: Master Schedule Table (Excel Matrix Layout) -->
+    <section id="tab-schedule" class="tab-content hidden space-y-4">
+        <div class="glass-card rounded-2xl p-4 md:p-6 shadow-xl">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-table-cells text-emerald-400"></i>
+                        ตารางกะภาพรวมทั้งหมด (ตารางแนวนอนแบบ Excel)
+                    </h2>
+                    <p class="text-xs text-slate-400">แสดงผลตารางตามไฟล์ Excel (ชื่อพนักงานในแนวตั้ง และวันที่ในแนวนอน)</p>
+                </div>
+                
+                <div class="relative w-full md:w-64">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-slate-500 text-xs"></i>
+                    <input type="text" id="schedule-search" onkeyup="filterMatrixSchedule()" placeholder="ค้นหาชื่อพนักงาน..." class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl pl-9 pr-3 py-2.5 focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+
+            <!-- Legend Info Bar -->
+            <div class="flex flex-wrap items-center gap-3 bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-xs mb-4">
+                <span class="text-slate-400 font-medium">สัญลักษณ์กะ:</span>
+                <span class="px-2.5 py-1 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30 font-medium">A, G = กะเช้า</span>
+                <span class="px-2.5 py-1 rounded bg-orange-500/20 text-orange-300 border border-orange-500/30 font-medium">B = กะบ่าย</span>
+                <span class="px-2.5 py-1 rounded bg-indigo-400/20 text-indigo-300 border border-indigo-400/30 font-medium">C = กะดึก</span>
+                <span class="px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 font-medium">OFF = วันหยุด</span>
+                <span class="px-2.5 py-1 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium">H = นักขัตฤกษ์</span>
+            </div>
+
+            <!-- Excel Matrix Table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead id="matrix-schedule-thead" class="bg-slate-900/90 text-slate-300 uppercase font-mono border-b border-slate-800">
+                    </thead>
+                    <tbody id="matrix-schedule-tbody" class="divide-y divide-slate-800/60">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 3: Machine & Plant Interactive Diagram -->
+    <section id="tab-machines" class="tab-content hidden space-y-6">
+        <div class="glass-card rounded-2xl p-4 md:p-6 shadow-xl">
+            <!-- Header & Action Bar -->
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-sitemap text-emerald-400"></i>
+                        แผนผังอาคารและรายการเครื่องจักรโรงแก๊สชีวภาพ
+                    </h2>
+                    <p class="text-xs text-slate-400">คลิกที่อาคารเพื่อดูรายการเครื่องจักร หน้าที่การทำงาน (พร้อมเสียงพากย์) และสถานะ</p>
+                </div>
+
+                <!-- Direct Excel Upload for Machine List -->
+                <div class="flex items-center space-x-2 w-full md:w-auto justify-end">
+                    <label class="cursor-pointer bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-semibold px-3.5 py-2.5 rounded-xl transition flex items-center space-x-2 whitespace-nowrap">
+                        <i class="fa-solid fa-file-circle-plus text-emerald-400"></i>
+                        <span>อัปโหลดรายการเครื่องจักร (.xlsx)</span>
+                        <input type="file" id="machine-excel-input" accept=".xlsx, .xls" class="hidden" onchange="handleMachineExcelUpload(event)">
+                    </label>
+                </div>
+            </div>
+
+            <!-- 6 Interactive Building Zone Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                
+                <div onclick="openBuildingModal('อาคาร Pump House')" class="glass-card zone-card rounded-2xl p-5 border border-slate-700/60 flex items-center space-x-4 bg-gradient-to-br from-slate-800/80 to-slate-900/90">
+                    <div class="bg-emerald-500/10 text-emerald-400 p-4 rounded-2xl border border-emerald-500/30 text-2xl">
+                        <i class="fa-solid fa-pump-soap"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold text-white">อาคาร Pump House</h3>
+                        <p id="count-pump-house" class="text-xs text-slate-400 mt-1">กำลังโหลด...</p>
+                        <span class="inline-flex items-center text-[11px] text-emerald-400 font-medium mt-2">
+                            <span>คลิกเพื่อดูเครื่องจักร</span>
+                            <i class="fa-solid fa-chevron-right text-[9px] ml-1"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div onclick="openBuildingModal('อาคาร Blower House')" class="glass-card zone-card rounded-2xl p-5 border border-slate-700/60 flex items-center space-x-4 bg-gradient-to-br from-slate-800/80 to-slate-900/90">
+                    <div class="bg-sky-500/10 text-sky-400 p-4 rounded-2xl border border-sky-500/30 text-2xl">
+                        <i class="fa-solid fa-fan"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold text-white">อาคาร Blower House</h3>
+                        <p id="count-blower-house" class="text-xs text-slate-400 mt-1">กำลังโหลด...</p>
+                        <span class="inline-flex items-center text-[11px] text-sky-400 font-medium mt-2">
+                            <span>คลิกเพื่อดูเครื่องจักร</span>
+                            <i class="fa-solid fa-chevron-right text-[9px] ml-1"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div onclick="openBuildingModal('อาคาร Main Sump')" class="glass-card zone-card rounded-2xl p-5 border border-slate-700/60 flex items-center space-x-4 bg-gradient-to-br from-slate-800/80 to-slate-900/90">
+                    <div class="bg-indigo-500/10 text-indigo-400 p-4 rounded-2xl border border-indigo-500/30 text-2xl">
+                        <i class="fa-solid fa-water"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold text-white">อาคาร Main Sump</h3>
+                        <p id="count-main-sump" class="text-xs text-slate-400 mt-1">กำลังโหลด...</p>
+                        <span class="inline-flex items-center text-[11px] text-indigo-400 font-medium mt-2">
+                            <span>คลิกเพื่อดูเครื่องจักร</span>
+                            <i class="fa-solid fa-chevron-right text-[9px] ml-1"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div onclick="openBuildingModal('อาคาร Dehumid')" class="glass-card zone-card rounded-2xl p-5 border border-slate-700/60 flex items-center space-x-4 bg-gradient-to-br from-slate-800/80 to-slate-900/90">
+                    <div class="bg-amber-500/10 text-amber-400 p-4 rounded-2xl border border-amber-500/30 text-2xl">
+                        <i class="fa-solid fa-temperature-arrow-down"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold text-white">อาคาร Dehumid</h3>
+                        <p id="count-dehumid" class="text-xs text-slate-400 mt-1">กำลังโหลด...</p>
+                        <span class="inline-flex items-center text-[11px] text-amber-400 font-medium mt-2">
+                            <span>คลิกเพื่อดูเครื่องจักร</span>
+                            <i class="fa-solid fa-chevron-right text-[9px] ml-1"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div onclick="openBuildingModal('Bio Scrubber')" class="glass-card zone-card rounded-2xl p-5 border border-slate-700/60 flex items-center space-x-4 bg-gradient-to-br from-slate-800/80 to-slate-900/90">
+                    <div class="bg-teal-500/10 text-teal-400 p-4 rounded-2xl border border-teal-500/30 text-2xl">
+                        <i class="fa-solid fa-flask-vial"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold text-white">Bio Scrubber</h3>
+                        <p id="count-bio-scrubber" class="text-xs text-slate-400 mt-1">กำลังโหลด...</p>
+                        <span class="inline-flex items-center text-[11px] text-teal-400 font-medium mt-2">
+                            <span>คลิกเพื่อดูเครื่องจักร</span>
+                            <i class="fa-solid fa-chevron-right text-[9px] ml-1"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <div onclick="openBuildingModal('บ่อ Equalizaton Pond')" class="glass-card zone-card rounded-2xl p-5 border border-slate-700/60 flex items-center space-x-4 bg-gradient-to-br from-slate-800/80 to-slate-900/90">
+                    <div class="bg-purple-500/10 text-purple-400 p-4 rounded-2xl border border-purple-500/30 text-2xl">
+                        <i class="fa-solid fa-dharmachakra"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-base font-bold text-white">บ่อ Equalizaton Pond</h3>
+                        <p id="count-eq-pond" class="text-xs text-slate-400 mt-1">กำลังโหลด...</p>
+                        <span class="inline-flex items-center text-[11px] text-purple-400 font-medium mt-2">
+                            <span>คลิกเพื่อดูเครื่องจักร</span>
+                            <i class="fa-solid fa-chevron-right text-[9px] ml-1"></i>
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal Pop-up for Machine Zone Details -->
+    <div id="building-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <div class="glass-card rounded-2xl max-w-3xl w-full max-h-[85vh] flex flex-col border border-slate-700 shadow-2xl">
+            <div class="p-4 md:p-5 border-b border-slate-800 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <i id="modal-zone-icon" class="fa-solid fa-building text-emerald-400 text-xl"></i>
+                    <h3 id="modal-zone-title" class="text-base md:text-lg font-bold text-white">รายชื่อเครื่องจักร</h3>
+                </div>
+                <button onclick="closeBuildingModal()" class="text-slate-400 hover:text-white text-lg p-1.5 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div id="modal-machine-list" class="p-4 md:p-6 overflow-y-auto space-y-3 flex-1">
+            </div>
+
+            <div class="p-4 border-t border-slate-800 flex justify-between items-center bg-slate-900/50 rounded-b-2xl text-xs text-slate-400">
+                <span>กดปุ่มลำโพงเพื่อฟังเสียงบรรยายเฉพาะ "หน้าที่การทำงาน"</span>
+                <button onclick="closeBuildingModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl border border-slate-700 transition font-medium">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 4: Daily Checklist Tasks & 30-Day History Review -->
+    <section id="tab-tasks" class="tab-content hidden space-y-6 max-w-4xl mx-auto">
+        <div class="glass-card rounded-2xl p-4 md:p-6 shadow-xl">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-list-check text-emerald-400"></i>
+                        รายการงานประจำวัน & ดูประวัติย้อนหลัง 30 วัน
+                    </h2>
+                    <p class="text-xs text-slate-400">เพิ่มรายการงานประจำวัน ติ๊กสถานะงาน และเลือกย้อนหลังเพื่อดูงานที่ทำไปแล้วได้</p>
+                </div>
+
+                <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
+                    <span class="text-xs text-slate-400 whitespace-nowrap">เลือกวันที่:</span>
+                    <input type="date" id="task-date-picker" onchange="renderTasksForSelectedDate()" class="bg-slate-900 border border-slate-700 text-emerald-400 text-xs font-mono rounded-xl px-3 py-2 focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+
+            <!-- Task Progress Bar -->
+            <div class="bg-slate-900/90 p-4 rounded-xl border border-slate-800 mb-6">
+                <div class="flex justify-between items-center text-xs text-slate-300 font-medium mb-2">
+                    <span id="task-progress-label">ความคืบหน้าการปฏิบัติงานวันนี้</span>
+                    <span id="task-progress-text" class="text-emerald-400 font-mono">0%</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+                    <div id="task-progress-bar" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Add Task Form -->
+            <div class="flex flex-col sm:flex-row gap-2 mb-6 bg-slate-900/50 p-3 rounded-xl border border-slate-800">
+                <input type="text" id="new-task-input" placeholder="พิมพ์เพิ่มรายการงานประจำวันที่ต้องทำ..." class="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-emerald-500">
+                <button onclick="addNewTask()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-5 py-2.5 rounded-xl transition flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>บันทึกงานประจำวัน</span>
+                </button>
+            </div>
+
+            <!-- Tasks List Container -->
+            <div id="task-list" class="space-y-2">
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 5: File Management & Excel Auto-Save Page -->
+    <section id="tab-upload" class="tab-content hidden space-y-6 max-w-4xl mx-auto">
+        <div class="glass-card rounded-2xl p-6 shadow-xl border border-slate-800">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-emerald-500/10 text-emerald-400 p-3 rounded-xl border border-emerald-500/20">
+                        <i class="fa-solid fa-file-excel text-2xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-white">จัดการไฟล์ข้อมูล & อัปโหลดบันทึกจำ</h2>
+                        <p class="text-xs text-slate-400">อัปโหลดตารางกะหรือรายการเครื่องจักร ระบบจะบันทึกจำให้อัตโนมัติ ปิดเว็บเปิดใหม่ข้อมูลไม่หาย</p>
+                    </div>
+                </div>
+
+                <!-- Reset Data Button -->
+                <button onclick="clearSavedDataAndReset()" class="bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-500/40 text-xs px-3.5 py-2 rounded-xl transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-trash-arrow-up"></i>
+                    <span>ล้างข้อมูลที่อัปโหลดไว้</span>
+                </button>
+            </div>
+
+            <!-- Auto-Save Status Badge -->
+            <div id="storage-status-banner" class="mb-6 p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+                    <span id="storage-status-text" class="text-xs text-slate-300">ระบบพร้อมบันทึกจำไฟล์ Excel อัตโนมัติในเบราว์เซอร์</span>
+                </div>
+                <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-full font-mono">AUTO-SAVE ENABLED</span>
+            </div>
+
+            <!-- Upload Actions Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- Google Sheets Link Input Box (NEW) -->
+                <div class="md:col-span-2 border-2 border-emerald-500/50 bg-emerald-950/20 rounded-2xl p-5 border-dashed space-y-3">
+                    <div class="flex items-center space-x-2 text-emerald-400 font-bold text-sm">
+                        <i class="fa-solid fa-link text-lg"></i>
+                        <span>เชื่อมต่อตารางกะสดจาก Google Sheets (ทุกเครื่องเห็นตรงกันอัตโนมัติ)</span>
+                    </div>
+                    <p class="text-xs text-slate-300">
+                        วางลิงก์ Google Sheets ที่กดแชร์สิทธิ์เป็น "ทุกคนที่มีลิงก์" แล้วกดปุ่มดึงข้อมูล ระบบจะอัปเดตตารางกะให้อัตโนมัติทันที
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="url" id="google-sheets-url-input" placeholder="วางลิงก์ Google Sheets ที่นี่ (เช่น https://docs.google.com/spreadsheets/d/...)" class="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-xs rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-emerald-500">
+                        <button onclick="connectGoogleSheets()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl transition text-xs font-bold shadow-lg flex items-center justify-center space-x-2 whitespace-nowrap">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>ดึงข้อมูลจาก Google Sheets</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Shift Excel Upload Box -->
+                <div class="border-2 border-dashed border-slate-700 hover:border-emerald-400 rounded-2xl p-6 text-center bg-slate-900/60 transition flex flex-col items-center justify-center space-y-3">
+                    <i class="fa-solid fa-calendar-plus text-3xl text-emerald-400 mb-1"></i>
+                    <div class="text-sm font-semibold text-slate-200">หรือ อัปโหลดตารางกะเป็นไฟล์ (.xlsx)</div>
+                    <p class="text-xs text-slate-400 max-w-xs">เลือกไฟล์ตารางกะแล้วกดอัปโหลด ระบบจะบันทึกจำในเครื่องให้อัตโนมัติทันที</p>
+                    
+                    <label class="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-200 px-5 py-2.5 rounded-xl transition text-xs font-bold border border-slate-700 inline-flex items-center space-x-2 mt-2">
+                        <i class="fa-solid fa-file-circle-plus"></i>
+                        <span>เลือกไฟล์ตารางกะ (.xlsx)</span>
+                        <input type="file" id="excel-file-input" accept=".xlsx, .xls" class="hidden">
+                    </label>
+                </div>
+
+                <!-- Template Download Box -->
+                <div class="border border-slate-800 rounded-2xl p-6 bg-slate-900/40 flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex items-center space-x-2 text-amber-400 font-bold text-sm mb-1">
+                            <i class="fa-solid fa-download"></i>
+                            <span>ดาวน์โหลดไฟล์แม่แบบ Excel</span>
+                        </div>
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            ดาวน์โหลดไฟล์ตัวอย่างตารางกะแม่แบบเพื่อนำไปแก้ไขข้อมูล แล้วกดอัปโหลดกลับเข้ามาในระบบได้ทันที
+                        </p>
+                    </div>
+
+                    <button onclick="downloadSampleTemplate()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white px-4 py-3 rounded-xl border border-slate-700 transition flex items-center justify-center space-x-2 text-xs font-semibold">
+                        <i class="fa-solid fa-file-arrow-down text-amber-400 text-base"></i>
+                        <span>ดาวน์โหลดแม่แบบ Excel (biogas_template.xlsx)</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Application Logic Script -->
+    <script>
+        // Initial Default Matrix Data
+        const defaultMatrixData = {
+            headers: ['20/07/2026', '21/07/2026', '22/07/2026', '23/07/2026', '24/07/2026', '25/07/2026', '26/07/2026', '27/07/2026', '28/07/2026', '29/07/2026', '30/07/2026', '31/07/2026'],
+            rows: [
+                { name: 'ไพศาล', shifts: { '20/07/2026':'A', '21/07/2026':'A', '22/07/2026':'A', '23/07/2026':'A', '24/07/2026':'A', '25/07/2026':'OFF', '26/07/2026':'A', '27/07/2026':'C', '28/07/2026':'C', '29/07/2026':'A', '30/07/2026':'A', '31/07/2026':'A' } },
+                { name: 'ธนวัฒน์', shifts: { '20/07/2026':'A', '21/07/2026':'C', '22/07/2026':'C', '23/07/2026':'A', '24/07/2026':'B', '25/07/2026':'B', '26/07/2026':'A', '27/07/2026':'A', '28/07/2026':'C', '29/07/2026':'OFF', '30/07/2026':'A', '31/07/2026':'B' } },
+                { name: 'เกียรติศักดิ์', shifts: { '20/07/2026':'A', '21/07/2026':'A', '22/07/2026':'A', '23/07/2026':'A', '24/07/2026':'A', '25/07/2026':'A', '26/07/2026':'B', '27/07/2026':'OFF', '28/07/2026':'A', '29/07/2026':'C', '30/07/2026':'C', '31/07/2026':'A' } },
+                { name: 'ชัยวรรธ', shifts: { '20/07/2026':'B', '21/07/2026':'B', '22/07/2026':'A', '23/07/2026':'C', '24/07/2026':'C', '25/07/2026':'OFF', '26/07/2026':'B', '27/07/2026':'B', '28/07/2026':'B', '29/07/2026':'A', '30/07/2026':'C', '31/07/2026':'C' } },
+                { name: 'เอกธนากร', shifts: { '20/07/2026':'A', '21/07/2026':'A', '22/07/2026':'A', '23/07/2026':'A', '24/07/2026':'A', '25/07/2026':'A', '26/07/2026':'A', '27/07/2026':'A', '28/07/2026':'B', '29/07/2026':'B', '30/07/2026':'OFF', '31/07/2026':'C' } },
+                { name: 'ชนาธิป', shifts: { '20/07/2026':'A', '21/07/2026':'A', '22/07/2026':'A', '23/07/2026':'A', '24/07/2026':'A', '25/07/2026':'C', '26/07/2026':'C', '27/07/2026':'A', '28/07/2026':'H', '29/07/2026':'H', '30/07/2026':'A', '31/07/2026':'A' } },
+                { name: 'นพดล', shifts: { '20/07/2026':'C', '21/07/2026':'A', '22/07/2026':'B', '23/07/2026':'B', '24/07/2026':'OFF', '25/07/2026':'A', '26/07/2026':'C', '27/07/2026':'C', '28/07/2026':'A', '29/07/2026':'B', '30/07/2026':'B', '31/07/2026':'A' } },
+                { name: 'จิรวัฒน์', shifts: { '20/07/2026':'G', '21/07/2026':'G', '22/07/2026':'G', '23/07/2026':'G', '24/07/2026':'G', '25/07/2026':'G', '26/07/2026':'A', '27/07/2026':'G', '28/07/2026':'A', '29/07/2026':'H', '30/07/2026':'G', '31/07/2026':'G' } },
+                { name: 'นิรุจน์', shifts: { '20/07/2026':'G', '21/07/2026':'G', '22/07/2026':'G', '23/07/2026':'G', '24/07/2026':'G', '25/07/2026':'G', '26/07/2026':'A', '27/07/2026':'G', '28/07/2026':'A', '29/07/2026':'H', '30/07/2026':'G', '31/07/2026':'G' } }
+            ]
+        };
+
+        // Initial Default Machine List
+        const defaultMachines = [
+            { ID: '20-P01-A', Name: 'PUMP FEED A (20-P01-A)', Category: 'อาคาร Pump House', Duty: 'ทำหน้าที่ Feed น้ำเข้าบ่อ Reactor', Status: 'ใช้งาน' },
+            { ID: '20-P01-B', Name: 'PUMP FEED B (20-P01-B)', Category: 'อาคาร Pump House', Duty: 'ทำหน้าที่ Feed น้ำเข้าบ่อ Reactor', Status: 'สำรอง' },
+            { ID: '20-P02', Name: 'PUMP 20-P02 (SREC)', Category: 'อาคาร Pump House', Duty: 'ทำหน้าที่เวียนสลัด ภายในบ่อ Reactor', Status: 'ใช้งาน' },
+            { ID: '20-P03', Name: 'PUMP 20-P03 (STANDBY)', Category: 'อาคาร Pump House', Duty: 'สำรองปั๊มเวียนสลัดบ่อ Reactor', Status: 'สำรอง' },
+            { ID: '20-P04', Name: 'PUMP 20-P04 (RANS)', Category: 'อาคาร Pump House', Duty: 'ทำหน้าที่เวียนสลัด ภายในบ่อ Reactor', Status: 'ใช้งาน' },
+            { ID: '20-P05-A', Name: 'SEALING WATER PUMP A', Category: 'อาคาร Pump House', Duty: 'ทำหน้าที่ ลำเลียงน้ำเพื่อเลี้ยงคอปั๊ม', Status: 'ใช้งาน' },
+            { ID: '20-P05-B', Name: 'SEALING WATER PUMP B', Category: 'อาคาร Pump House', Duty: 'ทำหน้าที่ ลำเลียงน้ำเพื่อเลี้ยงคอปั๊ม', Status: 'ใช้งาน' },
+
+            { ID: '40-BB01-A', Name: 'Biogas Blower (40-BB01-A)', Category: 'อาคาร Blower House', Duty: 'ดูดแก๊สจากบ่อ Reactor ส่งเข้าสู่ระบบ', Status: 'สำรอง' },
+            { ID: '40-BB01-B', Name: 'Biogas Blower (40-BB01-B)', Category: 'อาคาร Blower House', Duty: 'ดูดแก๊สจากบ่อ Reactor ส่งเข้าสู่ระบบ', Status: 'ใช้งาน' },
+            { ID: '40-BB02-A', Name: 'Biogas Blower (40-BB02-A)', Category: 'อาคาร Blower House', Duty: 'ดูดแก๊ส เพื่อส่งไปให้กับ Boiler', Status: 'สำรอง' },
+
+            { ID: 'MS-P01', Name: 'Main Sump Pump 01', Category: 'อาคาร Main Sump', Duty: 'สูบน้ำเสียรวมจากบ่อ Main Sump เข้าสู่ระบบปรับคุณภาพ', Status: 'ใช้งาน' },
+            { ID: 'MS-P02', Name: 'Main Sump Pump 02', Category: 'อาคาร Main Sump', Duty: 'สำรองปั๊มสูบน้ำเสียประจำบ่อ Main Sump', Status: 'สำรอง' },
+
+            { ID: 'DH-01', Name: 'Dehumidifier Chiller Unit 1', Category: 'อาคาร Dehumid', Duty: 'ทำหน้าที่ลดความชื้นและควบแน่นหยดน้ำออกจากก๊าซชีวภาพ', Status: 'ใช้งาน' },
+            { ID: 'DH-02', Name: 'Dehumidifier Chiller Unit 2', Category: 'อาคาร Dehumid', Duty: 'สำรองชุดลดความชื้นก๊าซชีวภาพ', Status: 'สำรอง' },
+
+            { ID: 'SCR-01', Name: 'Biological Scrubber Circulation Pump', Category: 'Bio Scrubber', Duty: 'สูบเวียนน้ำสเปรย์ขจัดก๊าซไฮโดรเจนซัลไฟด์ H2S', Status: 'ใช้งาน' },
+            { ID: 'SCR-02', Name: 'Scrubber Nutrient Dosing Pump', Category: 'Bio Scrubber', Duty: 'ปั๊มจ่ายสารอาหารและปรับค่า pH สำหรับแบคทีเรียขจัด H2S', Status: 'ใช้งาน' },
+
+            { ID: '10-P01', Name: 'PUMP 10-P01', Category: 'บ่อ Equalizaton Pond', Duty: 'เวียนสลัดใน บ่อ EQ เพื่อป้องกันการตกตะกอน', Status: 'ใช้งาน' },
+            { ID: '10-SP1', Name: 'PUMP 10-SP1', Category: 'บ่อ Equalizaton Pond', Duty: 'สูบสลัดจากบ่อ EQ เข้าถังเก็บสลัด', Status: 'ไม่ได้ใช้งาน' }
+        ];
+
+        // Active State variables
+        let currentMatrixData = JSON.parse(JSON.stringify(defaultMatrixData));
+        let currentMachines = JSON.parse(JSON.stringify(defaultMachines));
+        let synth = window.speechSynthesis;
+
+        // Auto-load data from LocalStorage if user previously uploaded files
+        function loadSavedStorageData() {
+            try {
+                const savedMatrix = localStorage.getItem('biogas_matrix_data_saved');
+                if (savedMatrix) {
+                    currentMatrixData = JSON.parse(savedMatrix);
+                }
+
+                const savedMachines = localStorage.getItem('biogas_machines_data_saved');
+                if (savedMachines) {
+                    currentMachines = JSON.parse(savedMachines);
+                }
+
+                const savedGSheetsUrl = localStorage.getItem('biogas_gsheets_url');
+                const ginput = document.getElementById('google-sheets-url-input');
+                if (savedGSheetsUrl && ginput) {
+                    ginput.value = savedGSheetsUrl;
+                }
+
+                updateStorageBanner();
+            } catch (e) {
+                console.error("LocalStorage load error:", e);
+            }
+        }
+
+        // Fetch Live Data from Google Sheets
+        async function connectGoogleSheets() {
+            const urlInput = document.getElementById('google-sheets-url-input');
+            if (!urlInput) return;
+            const url = urlInput.value.trim();
+            if (!url) {
+                showToast('กรุณากรอกลิงก์ Google Sheets', 'error');
+                return;
+            }
+
+            const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+            if (!match || !match[1]) {
+                showToast('รูปแบบลิงก์ Google Sheets ไม่ถูกต้อง', 'error');
+                return;
+            }
+
+            const sheetId = match[1];
+            const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+
+            showToast('กำลังเชื่อมต่อดึงข้อมูลตารางกะจาก Google Sheets...', 'info');
+
+            try {
+                const response = await fetch(csvUrl);
+                if (!response.ok) throw new Error('Network response failure');
+                const csvText = await response.text();
+
+                const workbook = XLSX.read(csvText, { type: 'string' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rawMatrix = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                if (rawMatrix.length > 1) {
+                    const headerRow = rawMatrix[0];
+                    const dateHeaders = [];
+
+                    for (let c = 1; c < headerRow.length; c++) {
+                        if (headerRow[c]) dateHeaders.push(parseDateString(headerRow[c]));
+                    }
+
+                    const parsedRows = [];
+                    for (let r = 1; r < rawMatrix.length; r++) {
+                        const row = rawMatrix[r];
+                        if (!row || !row[0]) continue;
+
+                        const empName = String(row[0]).trim();
+                        const shiftsObj = {};
+
+                        dateHeaders.forEach((dStr, idx) => {
+                            const val = row[idx + 1];
+                            if (val) shiftsObj[dStr] = String(val).trim().toUpperCase();
+                        });
+
+                        parsedRows.push({ name: empName, shifts: shiftsObj });
+                    }
+
+                    currentMatrixData = { headers: dateHeaders, rows: parsedRows };
+
+                    // Save Data and Link to LocalStorage
+                    localStorage.setItem('biogas_matrix_data_saved', JSON.stringify(currentMatrixData));
+                    localStorage.setItem('biogas_gsheets_url', url);
+
+                    renderShiftToday();
+                    renderMatrixSchedule();
+                    updateStorageBanner();
+                    showToast('เชื่อมต่อและดึงตารางกะจาก Google Sheets สำเร็จเรียบร้อย!', 'success');
+                }
+            } catch (err) {
+                console.error("GSheets Connect Error:", err);
+                showToast('ไม่สามารถดึงข้อมูลได้ กรุณาเช็คว่าแชร์สิทธิ์เป็น "ทุกคนที่มีลิงก์" แล้วหรือยัง', 'error');
+            }
+        }
+
+        function updateStorageBanner() {
+            const bannerTxt = document.getElementById('storage-status-text');
+            const hasSavedMatrix = localStorage.getItem('biogas_matrix_data_saved') !== null;
+            const hasSavedMachines = localStorage.getItem('biogas_machines_data_saved') !== null;
+
+            if (bannerTxt) {
+                if (hasSavedMatrix || hasSavedMachines) {
+                    bannerTxt.innerText = "ใช้งานข้อมูลตารางกะ/เครื่องจักรที่คุณเคยอัปโหลดบันทึกไว้ในเบราว์เซอร์แล้ว (ปิดเว็บแล้วเปิดใหม่ข้อมูลไม่หาย)";
+                } else {
+                    bannerTxt.innerText = "ระบบพร้อมรับไฟล์ Excel และจะบันทึกจำข้อมูลลงเครื่องให้อัตโนมัติทันทีที่อัปโหลด";
+                }
+            }
+        }
+
+        function clearSavedDataAndReset() {
+            if (confirm("คุณต้องการล้างข้อมูลตารางกะ/เครื่องจักรที่เคยอัปโหลดไว้ เพื่อกลับไปใช้ค่าเริ่มต้นใช่หรือไม่?")) {
+                localStorage.removeItem('biogas_matrix_data_saved');
+                localStorage.removeItem('biogas_machines_data_saved');
+
+                currentMatrixData = JSON.parse(JSON.stringify(defaultMatrixData));
+                currentMachines = JSON.parse(JSON.stringify(defaultMachines));
+
+                renderShiftToday();
+                renderMatrixSchedule();
+                updateZoneCounts();
+                updateStorageBanner();
+
+                showToast("ล้างข้อมูลเรียบร้อยแล้ว กลับสู่ค่าเริ่มต้นระบบ", "info");
+            }
+        }
+
+        // Get Thai voice for Text-to-Speech
+        function getThaiVoice() {
+            if (!('speechSynthesis' in window)) return null;
+            const voices = synth.getVoices();
+            let thaiVoice = voices.find(v => v.lang && (v.lang.toLowerCase().includes('th-th') || v.lang.toLowerCase() === 'th'));
+            if (!thaiVoice) {
+                thaiVoice = voices.find(v => v.name && (v.name.toLowerCase().includes('thai') || v.name.toLowerCase().includes('kanya') || v.name.toLowerCase().includes('ภาษาไทย')));
+            }
+            return thaiVoice;
+        }
+
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = () => { synth.getVoices(); };
+        }
+
+        // Speak ONLY machine duty
+        function speakMachineDutyOnly(dutyText) {
+            if (!('speechSynthesis' in window)) {
+                showToast('เบราว์เซอร์นี้ไม่รองรับระบบออกเสียง Text-to-Speech', 'error');
+                return;
+            }
+
+            synth.cancel(); // Stop active speech
+
+            if (!dutyText || dutyText === 'ไม่ระบุหน้าที่') {
+                showToast('ไม่พบข้อมูลหน้าที่การทำงาน', 'error');
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance(dutyText);
+            utterance.lang = 'th-TH';
+            utterance.rate = 0.9;
+
+            const thaiVoice = getThaiVoice();
+            if (thaiVoice) utterance.voice = thaiVoice;
+
+            synth.speak(utterance);
+            showToast(`กำลังเล่นเสียงบรรยายหน้าที่: "${dutyText}"`, 'info');
+        }
+
+        // Render Building Zone Cards Count
+        function updateZoneCounts() {
+            const zones = [
+                { id: 'count-pump-house', name: 'อาคาร Pump House' },
+                { id: 'count-blower-house', name: 'อาคาร Blower House' },
+                { id: 'count-main-sump', name: 'อาคาร Main Sump' },
+                { id: 'count-dehumid', name: 'อาคาร Dehumid' },
+                { id: 'count-bio-scrubber', name: 'Bio Scrubber' },
+                { id: 'count-eq-pond', name: 'บ่อ Equalizaton Pond' }
+            ];
+
+            zones.forEach(z => {
+                const el = document.getElementById(z.id);
+                if (el) {
+                    const list = currentMachines.filter(m => m.Category === z.name);
+                    const active = list.filter(m => m.Status === 'ใช้งาน').length;
+                    const standby = list.filter(m => m.Status === 'สำรอง').length;
+                    el.innerText = `มีเครื่องจักรทั้งหมด ${list.length} รายการ (ใช้งาน ${active} | สำรอง ${standby})`;
+                }
+            });
+        }
+
+        // Open Zone Modal
+        function openBuildingModal(zoneName) {
+            const modal = document.getElementById('building-modal');
+            const title = document.getElementById('modal-zone-title');
+            const icon = document.getElementById('modal-zone-icon');
+            const container = document.getElementById('modal-machine-list');
+
+            if (!modal || !container) return;
+
+            title.innerText = zoneName;
+            
+            if (zoneName.includes('Pump')) icon.className = 'fa-solid fa-pump-soap text-emerald-400 text-xl';
+            else if (zoneName.includes('Blower')) icon.className = 'fa-solid fa-fan text-sky-400 text-xl';
+            else if (zoneName.includes('Main Sump')) icon.className = 'fa-solid fa-water text-indigo-400 text-xl';
+            else if (zoneName.includes('Dehumid')) icon.className = 'fa-solid fa-temperature-arrow-down text-amber-400 text-xl';
+            else if (zoneName.includes('Scrubber')) icon.className = 'fa-solid fa-flask-vial text-teal-400 text-xl';
+            else icon.className = 'fa-solid fa-dharmachakra text-purple-400 text-xl';
+
+            const filtered = currentMachines.filter(m => m.Category === zoneName);
+
+            container.innerHTML = '';
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-slate-500 bg-slate-900/40 rounded-xl border border-slate-800">ไม่มีข้อมูลเครื่องจักรในอาคารนี้</div>`;
+            } else {
+                filtered.forEach(m => {
+                    let statusBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                    let statusIcon = 'fa-circle-check text-emerald-400';
+
+                    const st = (m.Status || '').trim();
+                    if (st === 'ใช้งาน' || st === 'ปกติ') {
+                        statusBadge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+                        statusIcon = 'fa-circle-check text-emerald-400';
+                    } else if (st === 'สำรอง') {
+                        statusBadge = 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+                        statusIcon = 'fa-clock text-sky-400';
+                    } else {
+                        statusBadge = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+                        statusIcon = 'fa-circle-xmark text-rose-400';
+                    }
+
+                    const safeDuty = (m.Duty || 'ไม่ระบุหน้าที่').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                    container.innerHTML += `
+                        <div class="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <h4 class="text-sm font-bold text-white">${m.Name}</h4>
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusBadge} flex items-center space-x-1">
+                                        <i class="fa-solid ${statusIcon}"></i>
+                                        <span>${m.Status || 'ไม่ระบุ'}</span>
+                                    </span>
+                                </div>
+                                <p class="text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800/80 mt-2">
+                                    <strong class="text-emerald-400 font-medium">หน้าที่:</strong> ${m.Duty || 'ไม่ระบุหน้าที่'}
+                                </p>
+                            </div>
+
+                            <button onclick="speakMachineDutyOnly('${safeDuty}')" class="bg-slate-800 hover:bg-slate-700 text-emerald-400 px-3.5 py-2.5 rounded-xl transition border border-slate-700 flex items-center justify-center space-x-2 text-xs whitespace-nowrap self-end sm:self-center" title="ฟังเสียงพูดเฉพาะหน้าที่">
+                                <i class="fa-solid fa-volume-high text-base"></i>
+                                <span>ฟังเสียงหน้าที่</span>
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeBuildingModal() {
+            const modal = document.getElementById('building-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        // Handle Machine Excel Upload & Auto-Save
+        function handleMachineExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const raw2D = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    let headerRowIdx = -1;
+                    for (let r = 0; r < raw2D.length; r++) {
+                        const row = raw2D[r];
+                        if (row && row.some(cell => String(cell).includes('รายการเครื่องจักร') || String(cell).includes('ชื่อ'))) {
+                            headerRowIdx = r;
+                            break;
+                        }
+                    }
+
+                    const startIdx = headerRowIdx >= 0 ? headerRowIdx + 1 : 0;
+                    const parsedMachines = [];
+                    let currentZone = 'อาคาร Pump House';
+
+                    for (let r = startIdx; r < raw2D.length; r++) {
+                        const row = raw2D[r];
+                        if (!row || row.length === 0) continue;
+
+                        const colA = row[0] ? String(row[0]).trim() : '';
+                        const colB = row[1] ? String(row[1]).trim() : '';
+                        const colC = row[2] ? String(row[2]).trim() : '';
+
+                        if (!colA) continue;
+                        if (colA.includes('รายการเครื่องจักร') || colA.includes('ชื่อพนักงาน')) continue;
+
+                        if (!colB && !colC) {
+                            currentZone = colA;
+                            continue;
+                        }
+
+                        parsedMachines.push({
+                            ID: colA.split('(')[1]?.replace(')', '').trim() || `MC-0${parsedMachines.length + 1}`,
+                            Name: colA,
+                            Category: currentZone,
+                            Duty: colB || 'ไม่ระบุหน้าที่',
+                            Status: colC || 'ใช้งาน'
+                        });
+                    }
+
+                    if (parsedMachines.length > 0) {
+                        currentMachines = parsedMachines;
+                        
+                        // Auto-Save to LocalStorage
+                        localStorage.setItem('biogas_machines_data_saved', JSON.stringify(currentMachines));
+                        
+                        updateZoneCounts();
+                        updateStorageBanner();
+                        showToast(`อัปเดตและบันทึกรายการเครื่องจักรสำเร็จ (${parsedMachines.length} รายการ)!`, 'success');
+                    }
+                } catch (err) {
+                    showToast("เกิดข้อผิดพลาดในการอ่านไฟล์เครื่องจักร", "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function getStorageTasks() {
+            try {
+                const stored = localStorage.getItem('biogas_tasks_history');
+                return stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveStorageTasks(allTasksObj) {
+            try {
+                localStorage.setItem('biogas_tasks_history', JSON.stringify(allTasksObj));
+            } catch (e) {}
+        }
+
+        function getSelectedTaskDate() {
+            const picker = document.getElementById('task-date-picker');
+            return picker ? picker.value : getTodayDateString();
+        }
+
+        function renderTasksForSelectedDate() {
+            const targetDate = getSelectedTaskDate();
+            const container = document.getElementById('task-list');
+            if (!container) return;
+
+            const allTasksObj = getStorageTasks();
+            const dayTasks = allTasksObj[targetDate] || [
+                { id: 1, text: 'ตรวจสอบแรงดันก๊าซถังหมัก 1 และ 2', done: true },
+                { id: 2, text: 'บันทึกค่า pH และอุณหภูมิน้ำหมักประจำวัน', done: true },
+                { id: 3, text: 'เช็คระดับน้ำคอนเดนเสทในดักน้ำก๊าซ (Drip Leg)', done: false },
+                { id: 4, text: 'ตรวจสอบการรั่วซึมของวาล์วก๊าซรอบโรงงาน', done: false }
+            ];
+
+            container.innerHTML = '';
+            let doneCount = 0;
+
+            if (dayTasks.length === 0) {
+                container.innerHTML = `<div class="p-8 text-center text-slate-500 bg-slate-900/40 rounded-xl border border-slate-800">ไม่มีรายการงานประจำวันที่บันทึกไว้ในวันที่เลือก</div>`;
+            } else {
+                dayTasks.forEach(task => {
+                    if (task.done) doneCount++;
+
+                    container.innerHTML += `
+                        <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition">
+                            <label class="flex items-center space-x-3 cursor-pointer flex-1">
+                                <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTaskDone('${targetDate}', ${task.id})" class="w-4 h-4 rounded border-slate-700 bg-slate-800 text-emerald-500 focus:ring-emerald-500/20">
+                                <span class="text-xs md:text-sm ${task.done ? 'line-through text-slate-500' : 'text-slate-200'}">${task.text}</span>
+                            </label>
+                            <button onclick="deleteTaskItem('${targetDate}', ${task.id})" class="text-slate-600 hover:text-rose-400 transition p-1 text-xs">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    `;
+                });
+            }
+
+            const percent = dayTasks.length > 0 ? Math.round((doneCount / dayTasks.length) * 100) : 0;
+            const bar = document.getElementById('task-progress-bar');
+            const txt = document.getElementById('task-progress-text');
+            const label = document.getElementById('task-progress-label');
+
+            if (bar) bar.style.width = `${percent}%`;
+            if (txt) txt.innerText = `${percent}% (${doneCount}/${dayTasks.length})`;
+            if (label) label.innerText = `ความคืบหน้าการปฏิบัติงานประจำวันที่ ${formatDateThai(targetDate)}`;
+        }
+
+        function toggleTaskDone(dateStr, taskId) {
+            const allTasksObj = getStorageTasks();
+            const dayTasks = allTasksObj[dateStr] || [];
+            const task = dayTasks.find(t => t.id === taskId);
+            if (task) {
+                task.done = !task.done;
+                allTasksObj[dateStr] = dayTasks;
+                saveStorageTasks(allTasksObj);
+                renderTasksForSelectedDate();
+            }
+        }
+
+        function deleteTaskItem(dateStr, taskId) {
+            const allTasksObj = getStorageTasks();
+            let dayTasks = allTasksObj[dateStr] || [];
+            dayTasks = dayTasks.filter(t => t.id !== taskId);
+            allTasksObj[dateStr] = dayTasks;
+            saveStorageTasks(allTasksObj);
+            renderTasksForSelectedDate();
+            showToast('ลบรายการงานเรียบร้อยแล้ว', 'info');
+        }
+
+        function addNewTask() {
+            const input = document.getElementById('new-task-input');
+            if (!input) return;
+
+            const val = input.value.trim();
+            if (!val) {
+                showToast('กรุณากรอกข้อความรายการงานประจำวัน', 'error');
+                return;
+            }
+
+            const targetDate = getSelectedTaskDate();
+            const allTasksObj = getStorageTasks();
+            const dayTasks = allTasksObj[targetDate] || [];
+
+            dayTasks.push({
+                id: Date.now(),
+                text: val,
+                done: false
+            });
+
+            allTasksObj[targetDate] = dayTasks;
+            saveStorageTasks(allTasksObj);
+
+            input.value = '';
+            renderTasksForSelectedDate();
+            showToast(`บันทึกรายการงานใหม่ประจำวันที่ ${formatDateThai(targetDate)} สำเร็จ!`, 'success');
+        }
+
+        // Render Daily Shifts
+        function renderShiftToday() {
+            const dateInput = document.getElementById('selected-shift-date');
+            let targetDate = dateInput ? dateInput.value : getTodayDateString();
+            
+            if (targetDate.includes('-')) {
+                const p = targetDate.split('-');
+                targetDate = `${p[2]}/${p[1]}/${p[0]}`;
+            }
+
+            const morningEl = document.getElementById('morning-shift-list');
+            const afternoonEl = document.getElementById('afternoon-shift-list');
+            const nightEl = document.getElementById('night-shift-list');
+            const offEl = document.getElementById('off-shift-list');
+            const holidayEl = document.getElementById('holiday-shift-list');
+
+            if (!morningEl || !afternoonEl || !nightEl || !offEl || !holidayEl) return;
+
+            morningEl.innerHTML = '';
+            afternoonEl.innerHTML = '';
+            nightEl.innerHTML = '';
+            offEl.innerHTML = '';
+            holidayEl.innerHTML = '';
+
+            let counts = { morning: 0, afternoon: 0, night: 0, off: 0, holiday: 0 };
+
+            currentMatrixData.rows.forEach(row => {
+                let shiftCode = row.shifts[targetDate] || '';
+                if (!shiftCode) {
+                    const matchingKey = Object.keys(row.shifts).find(k => k.includes(targetDate) || targetDate.includes(k));
+                    if (matchingKey) shiftCode = row.shifts[matchingKey];
+                }
+
+                if (shiftCode) {
+                    let codeBadgeClass = "bg-slate-800 text-slate-400 border-slate-700";
+                    if (shiftCode === 'A' || shiftCode === 'G') codeBadgeClass = "bg-amber-400/20 text-amber-300 border-amber-400/30";
+                    else if (shiftCode === 'B') codeBadgeClass = "bg-orange-500/20 text-orange-300 border-orange-500/30";
+                    else if (shiftCode === 'C') codeBadgeClass = "bg-indigo-400/20 text-indigo-300 border-indigo-400/30";
+                    else if (shiftCode === 'H') codeBadgeClass = "bg-rose-500/20 text-rose-300 border-rose-500/30";
+
+                    const card = `
+                        <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex justify-between items-center">
+                            <div class="text-xs md:text-sm font-medium text-slate-200">${row.name}</div>
+                            <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${codeBadgeClass}">
+                                ${shiftCode}
+                            </span>
+                        </div>
+                    `;
+
+                    if (shiftCode === 'A' || shiftCode === 'G') {
+                        morningEl.innerHTML += card;
+                        counts.morning++;
+                    } else if (shiftCode === 'B') {
+                        afternoonEl.innerHTML += card;
+                        counts.afternoon++;
+                    } else if (shiftCode === 'C') {
+                        nightEl.innerHTML += card;
+                        counts.night++;
+                    } else if (shiftCode === 'H') {
+                        holidayEl.innerHTML += card;
+                        counts.holiday++;
+                    } else if (shiftCode === 'OFF') {
+                        offEl.innerHTML += card;
+                        counts.off++;
+                    }
+                }
+            });
+
+            if (counts.morning === 0) morningEl.innerHTML = `<div class="text-xs text-slate-500 italic py-2 text-center">ไม่มีผู้เข้ากะเช้า</div>`;
+            if (counts.afternoon === 0) afternoonEl.innerHTML = `<div class="text-xs text-slate-500 italic py-2 text-center">ไม่มีผู้เข้ากะบ่าย</div>`;
+            if (counts.night === 0) nightEl.innerHTML = `<div class="text-xs text-slate-500 italic py-2 text-center">ไม่มีผู้เข้ากะดึก</div>`;
+            if (counts.off === 0) offEl.innerHTML = `<div class="text-xs text-slate-500 italic py-2 text-center">ไม่มีวันหยุดประจำสัปดาห์</div>`;
+            if (counts.holiday === 0) holidayEl.innerHTML = `<div class="text-xs text-slate-500 italic py-2 text-center">ไม่มีวันหยุดนักขัตฤกษ์</div>`;
+        }
+
+        // Render Matrix Schedule Table
+        function renderMatrixSchedule(filterText = '') {
+            const thead = document.getElementById('matrix-schedule-thead');
+            const tbody = document.getElementById('matrix-schedule-tbody');
+            if (!thead || !tbody) return;
+
+            let headerHTML = `<tr class="bg-slate-900/90 text-slate-300 font-mono"><th class="p-3 border-b border-slate-800 sticky left-0 bg-slate-900 z-10 w-32">ชื่อพนักงาน</th>`;
+            currentMatrixData.headers.forEach(h => {
+                headerHTML += `<th class="p-3 border-b border-slate-800 text-center min-w-[90px]">${h}</th>`;
+            });
+            headerHTML += `</tr>`;
+            thead.innerHTML = headerHTML;
+
+            tbody.innerHTML = '';
+            const filteredRows = currentMatrixData.rows.filter(r => r.name.toLowerCase().includes(filterText.toLowerCase()));
+
+            if (filteredRows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${currentMatrixData.headers.length + 1}" class="p-6 text-center text-slate-500">ไม่พบรายชื่อพนักงานที่ค้นหา</td></tr>`;
+                return;
+            }
+
+            filteredRows.forEach(row => {
+                let rowHTML = `<tr class="hover:bg-slate-800/40 transition"><td class="p-3 font-medium text-slate-200 border-b border-slate-800/60 sticky left-0 bg-slate-900/95 z-10">${row.name}</td>`;
+                currentMatrixData.headers.forEach(h => {
+                    const code = row.shifts[h] || '-';
+                    let badgeClass = 'bg-slate-800 text-slate-400 border-slate-700';
+
+                    if (code === 'A' || code === 'G') {
+                        badgeClass = 'bg-amber-400/20 text-amber-300 border-amber-400/30';
+                    } else if (code === 'B') {
+                        badgeClass = 'bg-orange-500/20 text-orange-300 border-orange-500/30';
+                    } else if (code === 'C') {
+                        badgeClass = 'bg-indigo-400/20 text-indigo-300 border-indigo-400/30';
+                    } else if (code === 'OFF') {
+                        badgeClass = 'bg-slate-800 text-slate-400 border-slate-700';
+                    } else if (code === 'H') {
+                        badgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+                    }
+
+                    rowHTML += `<td class="p-2 border-b border-slate-800/60 text-center"><span class="inline-block px-2.5 py-1 rounded text-xs font-mono font-bold border ${badgeClass}">${code}</span></td>`;
+                });
+                rowHTML += `</tr>`;
+                tbody.innerHTML += rowHTML;
+            });
+        }
+
+        // Excel Matrix Shift File Upload & Auto-Save
+        function handleExcelUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rawMatrix = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                    if (rawMatrix.length > 1) {
+                        const headerRow = rawMatrix[0];
+                        const dateHeaders = [];
+
+                        for (let c = 1; c < headerRow.length; c++) {
+                            if (headerRow[c]) dateHeaders.push(parseDateString(headerRow[c]));
+                        }
+
+                        const parsedRows = [];
+                        for (let r = 1; r < rawMatrix.length; r++) {
+                            const row = rawMatrix[r];
+                            if (!row || !row[0]) continue;
+
+                            const empName = String(row[0]).trim();
+                            const shiftsObj = {};
+
+                            dateHeaders.forEach((dStr, idx) => {
+                                const val = row[idx + 1];
+                                if (val) shiftsObj[dStr] = String(val).trim().toUpperCase();
+                            });
+
+                            parsedRows.push({ name: empName, shifts: shiftsObj });
+                        }
+
+                        currentMatrixData = { headers: dateHeaders, rows: parsedRows };
+                        
+                        // Auto-Save to LocalStorage
+                        localStorage.setItem('biogas_matrix_data_saved', JSON.stringify(currentMatrixData));
+
+                        renderShiftToday();
+                        renderMatrixSchedule();
+                        updateStorageBanner();
+                        showToast(`อัปโหลดและบันทึกตารางกะสำเร็จ!`, 'success');
+                    }
+                } catch (err) {
+                    showToast("เกิดข้อผิดพลาดในการอ่านไฟล์ Excel", "error");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function downloadSampleTemplate() {
+            const wb = XLSX.utils.book_new();
+
+            const shiftMatrix = [
+                ['ชื่อพนักงาน', '20/07/2026', '21/07/2026', '22/07/2026', '23/07/2026', '24/07/2026', '25/07/2026', '26/07/2026', '27/07/2026', '28/07/2026', '29/07/2026', '30/07/2026', '31/07/2026'],
+                ['ไพศาล', 'A', 'A', 'A', 'A', 'A', 'OFF', 'A', 'C', 'C', 'A', 'A', 'A'],
+                ['ธนวัฒน์', 'A', 'C', 'C', 'A', 'B', 'B', 'A', 'A', 'C', 'OFF', 'A', 'B'],
+                ['เกียรติศักดิ์', 'A', 'A', 'A', 'A', 'A', 'A', 'B', 'OFF', 'A', 'C', 'C', 'A'],
+                ['ชัยวรรธ', 'B', 'B', 'A', 'C', 'C', 'OFF', 'B', 'B', 'B', 'A', 'C', 'C'],
+                ['เอกธนากร', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'B', 'B', 'OFF', 'C'],
+                ['ชนาธิป', 'A', 'A', 'A', 'A', 'A', 'C', 'C', 'A', 'H', 'H', 'A', 'A'],
+                ['นพดล', 'C', 'A', 'B', 'B', 'OFF', 'A', 'C', 'C', 'A', 'B', 'B', 'A'],
+                ['จิรวัฒน์', 'G', 'G', 'G', 'G', 'G', 'G', 'A', 'G', 'H', 'OFF', 'G', 'G'],
+                ['นิรุจน์', 'G', 'G', 'G', 'G', 'G', 'G', 'A', 'G', 'H', 'OFF', 'G', 'G']
+            ];
+            const shiftWs = XLSX.utils.aoa_to_sheet(shiftMatrix);
+            XLSX.utils.book_append_sheet(wb, shiftWs, 'Shift_Schedule');
+
+            XLSX.writeFile(wb, 'biogas_template.xlsx');
+            showToast("ดาวน์โหลดไฟล์แม่แบบเรียบร้อยแล้ว", "success");
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            const target = document.getElementById(tabId);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.className = "tab-btn text-sm font-medium px-4 py-2.5 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-all flex items-center space-x-2 whitespace-nowrap";
+            });
+
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if (activeBtn) {
+                activeBtn.className = "tab-btn active text-sm font-medium px-4 py-2.5 rounded-xl transition-all flex items-center space-x-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 whitespace-nowrap";
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const toast = document.createElement('div');
+            let bgClass = "bg-slate-800 text-slate-200 border-slate-700";
+            let iconClass = "fa-circle-info text-emerald-400";
+
+            if (type === 'success') {
+                bgClass = "bg-emerald-950 text-emerald-200 border-emerald-500/40";
+                iconClass = "fa-circle-check text-emerald-400";
+            } else if (type === 'error') {
+                bgClass = "bg-rose-950 text-rose-200 border-rose-500/40";
+                iconClass = "fa-triangle-exclamation text-rose-400";
+            }
+
+            toast.className = `pointer-events-auto flex items-center space-x-3 p-3.5 px-4 rounded-xl border shadow-xl text-xs font-medium transition-all duration-300 transform translate-x-5 opacity-0 ${bgClass}`;
+            toast.innerHTML = `<i class="fa-solid ${iconClass} text-base"></i><span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            setTimeout(() => { toast.classList.remove('translate-x-5', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-x-5', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function getTodayDateString() {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            return `${yyyy}-${mm}-${dd}`;
+        }
+
+        function formatDateThai(dateStr) {
+            if (!dateStr) return '-';
+            let parts = [];
+            if (dateStr.includes('-')) parts = dateStr.split('-');
+            else if (dateStr.includes('/')) parts = dateStr.split('/');
+            
+            if (parts.length !== 3) return dateStr;
+            
+            let year = parseInt(parts[0], 10);
+            let month = parseInt(parts[1], 10);
+            let day = parseInt(parts[2], 10);
+
+            if (parts[0].length <= 2 && parts[2].length === 4) {
+                day = parseInt(parts[0], 10);
+                month = parseInt(parts[1], 10);
+                year = parseInt(parts[2], 10);
+            }
+
+            if (year < 2400) year += 543;
+            const monthNames = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+            return `${day} ${monthNames[month - 1] || month} ${year}`;
+        }
+
+        function parseDateString(dateVal) {
+            if (!dateVal) return null;
+            if (typeof dateVal === 'number') {
+                const dateObj = new Date((dateVal - (25567 + 2)) * 86400 * 1000);
+                const yyyy = dateObj.getFullYear();
+                const mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const dd = String(dateObj.getDate()).padStart(2, '0');
+                return `${dd}/${mm}/${yyyy}`;
+            }
+            return String(dateVal).trim();
+        }
+
+        function initClock() {
+            function update() {
+                const now = new Date();
+                const dateEl = document.getElementById('current-date');
+                const timeEl = document.getElementById('current-time');
+                if (dateEl) dateEl.innerText = formatDateThai(getTodayDateString());
+                if (timeEl) timeEl.innerText = now.toLocaleTimeString('th-TH');
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        function resetToToday() {
+            const dateInput = document.getElementById('selected-shift-date');
+            if (dateInput) dateInput.value = getTodayDateString();
+            renderShiftToday();
+        }
+
+        function filterMatrixSchedule() {
+            const input = document.getElementById('schedule-search');
+            renderMatrixSchedule(input ? input.value : '');
+        }
+
+        // Initialize App on DOM Load
+        window.addEventListener('DOMContentLoaded', () => {
+            initClock();
+
+            // Load saved Excel data from LocalStorage if available
+            loadSavedStorageData();
+
+            const shiftDateInput = document.getElementById('selected-shift-date');
+            if (shiftDateInput) shiftDateInput.value = getTodayDateString();
+
+            const taskDatePicker = document.getElementById('task-date-picker');
+            if (taskDatePicker) taskDatePicker.value = getTodayDateString();
+
+            renderShiftToday();
+            renderMatrixSchedule();
+            updateZoneCounts();
+            renderTasksForSelectedDate();
+
+            const excelInput = document.getElementById('excel-file-input');
+            if (excelInput) excelInput.addEventListener('change', handleExcelUpload);
+        });
+    </script>
+</body>
+</html>
